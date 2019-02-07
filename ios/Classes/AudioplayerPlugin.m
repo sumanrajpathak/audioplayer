@@ -67,7 +67,7 @@ FlutterMethodChannel *_channel;
                                       result(nil);
                                   }
                               };
-    
+
     CaseBlock c = methods[call.method];
     if (c) {
         c();
@@ -80,19 +80,19 @@ FlutterMethodChannel *_channel;
     if (![url isEqualToString:lastUrl]) {
         [playerItem removeObserver:self
                         forKeyPath:@"player.currentItem.status"];
-        
+
         for (id ob in observers) {
             [[NSNotificationCenter defaultCenter] removeObserver:ob];
         }
         observers = nil;
-        
+
         if (isLocal) {
             playerItem = [[AVPlayerItem alloc] initWithURL:[NSURL fileURLWithPath:url]];
         } else {
             playerItem = [[AVPlayerItem alloc] initWithURL:[NSURL URLWithString:url]];
         }
         lastUrl = url;
-        
+
         id anobserver = [[NSNotificationCenter defaultCenter] addObserverForName:AVPlayerItemDidPlayToEndTimeNotification
                                                                           object:playerItem
                                                                            queue:nil
@@ -101,7 +101,7 @@ FlutterMethodChannel *_channel;
                                                                           [_channel invokeMethod:@"audio.onComplete" arguments:nil];
                                                                       }];
         [observers addObject:anobserver];
-        
+
         if (player) {
             [player replaceCurrentItemWithPlayerItem:playerItem];
         } else {
@@ -115,7 +115,7 @@ FlutterMethodChannel *_channel;
             }];
             [timeobservers addObject:timeObserver];
         }
-        
+
         // is sound ready
         [[player currentItem] addObserver:self
                                forKeyPath:@"player.currentItem.status"
@@ -129,9 +129,12 @@ FlutterMethodChannel *_channel;
 
 - (void)onStart {
     CMTime duration = [[player currentItem] duration];
-    if (CMTimeGetSeconds(duration) > 0) {
-        int mseconds= CMTimeGetSeconds(duration)*1000;
+    if (!CMTIME_IS_INDEFINITE(duration)) {
+        int mseconds = CMTimeGetSeconds(duration) * 1000;
         [_channel invokeMethod:@"audio.onStart" arguments:@(mseconds)];
+    }
+    else if (player.currentItem.status == AVPlayerItemStatusReadyToPlay) {
+        [NSTimer scheduledTimerWithTimeInterval:.2 target:self selector:@selector(onStart) userInfo:nil repeats:NO];
     }
 }
 
@@ -187,7 +190,7 @@ FlutterMethodChannel *_channel;
         [player removeTimeObserver:ob];
     }
     timeobservers = nil;
-    
+
     for (id ob in observers) {
         [[NSNotificationCenter defaultCenter] removeObserver:ob];
     }
